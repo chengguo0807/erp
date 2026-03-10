@@ -1,0 +1,79 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: erp-system
+  profiles:
+    active: dev
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/erp_system?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      max-lifetime: 600000
+      connection-timeout: 30000
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+      database: 0
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      logic-delete-field: delFlag
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      id-type: assign_id
+
+# JWT配置
+jwt:
+  secret: enterprisehub-erp-secret-key-must-be-at-least-256-bits-long
+  expiration: 86400
+
+# SpringDoc配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  group-configs:
+    - group: 系统管理
+      paths-to-match: /system/**
+    - group: 销售管理
+      paths-to-match: /sales/**
+    - group: 采购管理
+      paths-to-match: /purchase/**
+    - group: 库存管理
+      paths-to-match: /inventory/**
+    - group: 财务管理
+      paths-to-match: /finance/**
+    - group: 统计报表
+      paths-to-match: /statistics/**
+
+# 日志配置
+logging:
+  level:
+    com.enterprisehub: debug
+    com.enterprisehub.system.mapper: debug

@@ -1,0 +1,9 @@
+package com.enterprisehub.system.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.enterprisehub.system.domain.entity.StockCheckItem;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface StockCheckItemMapper extends BaseMapper<StockCheckItem> {
+}

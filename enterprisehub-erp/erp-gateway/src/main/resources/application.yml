@@ -1,0 +1,44 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: erp-gateway
+
+  cloud:
+    gateway:
+      routes:
+        # 系统管理服务
+        - id: erp-system
+          uri: http://localhost:8082
+          predicates:
+            - Path=/system/**, /auth/**
+          filters:
+            - StripPrefix=0
+
+      # 跨域配置
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:123456}
+      database: 0
+
+# JWT配置
+jwt:
+  secret: enterprisehub-erp-secret-key-must-be-at-least-256-bits-long
+
+# 日志配置
+logging:
+  level:
+    org.springframework.cloud.gateway: debug
+    com.enterprisehub: debug

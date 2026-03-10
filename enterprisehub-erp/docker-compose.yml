@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: erp-mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: erp_system
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
+    networks:
+      - erp-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: erp-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass 123456 --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - erp-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "123456", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 系统管理服务
+  erp-system:
+    build:
+      context: .
+      dockerfile: erp-system/Dockerfile
+    container_name: erp-system
+    restart: always
+    ports:
+      - "8082:8082"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: 123456
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: 123456
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+  # API网关
+  erp-gateway:
+    build:
+      context: .
+      dockerfile: erp-gateway/Dockerfile
+    container_name: erp-gateway
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: 123456
+    depends_on:
+      - erp-system
+    networks:
+      - erp-network
+
+  # 前端应用
+  erp-frontend:
+    build:
+      context: ../enterprisehub-erp-ui
+      dockerfile: Dockerfile
+    container_name: erp-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - erp-gateway
+    networks:
+      - erp-network
+
+volumes:
+  mysql-data:
+  redis-data:
+
+networks:
+  erp-network:
+    driver: bridge
