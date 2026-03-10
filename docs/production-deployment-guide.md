@@ -2,6 +2,22 @@
 
 > 本指南将手把手教你如何将ERP系统部署到生产服务器，让用户可以通过域名访问你的系统。
 
+## 🚀 部署方式选择
+
+根据您的网络环境，请选择合适的部署方式：
+
+### 方式一：Docker容器化部署（推荐）
+- **适用场景**：网络连接正常，可以访问Docker Hub
+- **优势**：部署简单，环境隔离，易于管理
+- **要求**：服务器能够访问 registry-1.docker.io
+
+### 方式二：本地服务安装部署
+- **适用场景**：网络受限，无法访问Docker Hub
+- **优势**：不依赖外网，完全本地化
+- **要求**：手动安装MySQL、Redis、Java等服务
+
+> **网络测试**：执行 `ping registry-1.docker.io` 测试网络连接，如果100%丢包则选择方式二
+
 ---
 
 ## 📋 部署前准备清单
@@ -101,9 +117,19 @@ apt update && apt upgrade -y
 yum update -y
 ```
 
-### 2.3 安装Docker和Docker Compose
+### 2.3 网络连接测试
 
-Docker可以让部署变得非常简单，强烈推荐！
+```bash
+# 测试Docker Hub连接
+ping -c 4 registry-1.docker.io
+
+# 如果出现 100% packet loss，请使用本地安装方式
+# 如果连接正常，可以使用Docker方式
+```
+
+### 2.4 安装方式选择
+
+**如果网络连接正常，安装Docker：**
 
 ```bash
 # 安装Docker
@@ -121,10 +147,34 @@ curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-comp
 chmod +x /usr/local/bin/docker-compose
 
 # 验证安装
-docker-compose --version
+docker compose version
 ```
 
-### 2.4 安装Nginx（Web服务器）
+> **重要说明**：新版Docker Compose使用 `docker compose`（无连字符）命令，而不是旧版的 `docker-compose`
+
+**如果网络受限，使用本地安装：**
+
+```bash
+# 安装MySQL 8.0
+apt install mysql-server -y
+
+# 安装Redis
+apt install redis-server -y
+
+# 安装Java 17
+apt install openjdk-17-jdk -y
+
+# 安装Maven
+apt install maven -y
+
+# 验证安装
+mysql --version
+redis-server --version
+java -version
+mvn -version
+```
+
+### 2.5 安装Nginx（Web服务器）
 
 ```bash
 # Ubuntu
@@ -179,12 +229,19 @@ scp -r /本地项目路径/enterprisehub-erp root@服务器IP:/opt/
 
 ### 4.1 修改后端配置文件
 
+**Docker部署方式：**
 ```bash
-cd /opt/enterprisehub-erp/enterprisehub-erp
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp
 vi erp-system/src/main/resources/application-prod.yml
 ```
 
-创建生产环境配置文件（按 `i` 进入编辑模式）：
+**本地安装方式：**
+```bash
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp
+vi erp-system/src/main/resources/application-local.yml
+```
+
+**Docker环境配置文件内容**：
 
 ```yaml
 server:
@@ -230,12 +287,58 @@ logging:
     max-history: 30
 ```
 
+**本地安装环境配置文件内容**：
+
+```yaml
+server:
+  port: 8082
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/erp_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  redis:
+    host: localhost
+    port: 6379
+    password: 123456
+    database: 0
+    timeout: 3000
+
+  # 文件上传限制
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+# JWT配置
+jwt:
+  secret: enterprisehub-erp-secret-key-must-be-at-least-256-bits-long
+  expiration: 7200  # Token有效期2小时
+
+# 日志配置
+logging:
+  level:
+    root: WARN
+    com.enterprisehub: INFO
+  file:
+    name: /opt/enterprisehub-erp/erp/logs/erp-system.log
+    max-size: 100MB
+    max-history: 30
+```
+
 保存并退出（按 `ESC`，输入 `:wq`，回车）
 
 ### 4.2 修改前端配置
 
 ```bash
-cd /opt/enterprisehub-erp/enterprisehub-erp-ui
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp-ui
 vi .env.production
 ```
 
@@ -249,12 +352,16 @@ VITE_API_BASE_URL=/api
 VITE_APP_TITLE=EnterpriseHub ERP管理系统
 ```
 
-### 4.3 修改Docker Compose配置
+### 4.3 修改Docker Compose配置（仅Docker部署）
+
+如果使用Docker部署，需要配置docker-compose.yml：
 
 ```bash
-cd /opt/enterprisehub-erp/enterprisehub-erp
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp
 vi docker-compose.yml
 ```
+
+> **注意**：配置文件名仍然是 `docker-compose.yml`，但执行命令使用 `docker compose`（无连字符）
 
 确保配置如下（重点关注密码和端口）：
 
@@ -267,7 +374,7 @@ services:
     container_name: erp-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: 你的MySQL密码
+      MYSQL_ROOT_PASSWORD: 123456
       MYSQL_DATABASE: erp_system
       TZ: Asia/Shanghai
     ports:
@@ -281,7 +388,7 @@ services:
     image: redis:7-alpine
     container_name: erp-redis
     restart: always
-    command: redis-server --requirepass 你的Redis密码
+    command: redis-server --requirepass 123456
     ports:
       - "6379:6379"
     volumes:
@@ -306,12 +413,14 @@ services:
 
 ---
 
-## 第五步：构建和启动后端服务
+## 第五步：构建和启动服务
 
-### 5.1 创建后端Dockerfile
+### 方式A：Docker容器化部署
+
+#### 5A.1 创建后端Dockerfile
 
 ```bash
-cd /opt/enterprisehub-erp/enterprisehub-erp
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp
 vi Dockerfile
 ```
 
@@ -335,41 +444,168 @@ EXPOSE 8082
 ENTRYPOINT ["java", "-jar", "-Xms512m", "-Xmx2g", "app.jar"]
 ```
 
-### 5.2 启动所有服务
+#### 5A.2 启动所有服务
 
 ```bash
-cd /opt/enterprisehub-erp/enterprisehub-erp
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp
 
 # 启动MySQL、Redis、后端服务
-docker-compose up -d
+docker compose up -d
 
 # 查看启动日志
-docker-compose logs -f
+docker compose logs -f
 
 # 等待所有服务启动完成（约2-3分钟）
 # 看到 "Started SystemApplication" 表示后端启动成功
 ```
 
-### 5.3 初始化数据库
+**如果遇到构建错误，请按以下步骤排查：**
+
+**方法一：使用修复脚本（推荐）**：
+```bash
+# 下载修复脚本
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp
+wget https://raw.githubusercontent.com/chengguo0807/erp/main/fix-docker-build.sh
+chmod +x fix-docker-build.sh
+
+# 运行修复脚本
+./fix-docker-build.sh
+```
+
+**方法二：手动分步启动**：
+
+**方法二：手动分步启动**：
+1. **分步启动服务（推荐）**：
+```bash
+# 先启动数据库和Redis
+docker compose up -d mysql redis
+
+# 检查数据库和Redis是否正常启动
+docker compose ps
+
+# 单独构建和启动后端服务
+docker compose up -d --build erp-system
+
+# 查看erp-system启动日志
+docker compose logs -f erp-system
+
+# 如果erp-system正常，再启动网关
+docker compose up -d --build erp-gateway
+
+# 最后启动前端
+docker compose up -d --build erp-frontend
+```
+
+2. **如果构建失败，清除缓存重建**：
+```bash
+# 停止所有服务
+docker compose down
+
+# 清除构建缓存
+docker compose build --no-cache
+
+# 重新启动
+docker compose up -d
+```
+
+3. **临时禁用有问题的服务**：
+如果某个服务一直构建失败，可以临时注释掉：
+```bash
+vi docker-compose.yml
+
+# 在有问题的服务前加 # 注释，例如：
+# erp-frontend:
+#   build:
+#     context: ../enterprisehub-erp-ui
+#     dockerfile: Dockerfile
+```
+
+#### 5A.3 初始化数据库
 
 ```bash
 # 进入MySQL容器
-docker exec -it erp-mysql mysql -uroot -p你的MySQL密码
+docker exec -it erp-mysql mysql -uroot -p123456
 
 # 在MySQL命令行中执行
 USE erp_system;
 SOURCE /docker-entrypoint-initdb.d/init.sql;
-SOURCE /docker-entrypoint-initdb.d/run_all.sql;
 EXIT;
+```
+
+### 方式B：本地服务安装部署
+
+#### 5B.1 配置MySQL
+
+```bash
+# 启动MySQL服务
+systemctl start mysql
+systemctl enable mysql
+
+# 设置MySQL root密码
+mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '123456';"
+
+# 创建数据库
+mysql -u root -p123456 -e "CREATE DATABASE erp_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# 导入数据库结构（如果有init.sql文件）
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp
+if [ -f "sql/init.sql" ]; then
+    mysql -u root -p123456 erp_system < sql/init.sql
+fi
+```
+
+#### 5B.2 配置Redis
+
+```bash
+# 配置Redis密码
+sed -i 's/# requirepass foobared/requirepass 123456/' /etc/redis/redis.conf
+
+# 启动Redis服务
+systemctl start redis-server
+systemctl enable redis-server
+
+# 测试Redis连接
+redis-cli -a 123456 ping
+```
+
+#### 5B.3 编译和启动后端服务
+
+```bash
+# 进入后端项目目录
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp
+
+# 创建日志目录
+mkdir -p /opt/enterprisehub-erp/erp/logs
+
+# 设置JAVA_HOME
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+
+# 编译项目（跳过测试）
+mvn clean package -DskipTests
+
+# 启动erp-system服务
+cd erp-system
+nohup java -jar -Dspring.profiles.active=local target/erp-system-*.jar > /opt/enterprisehub-erp/erp/logs/erp-system.log 2>&1 &
+
+# 查看启动日志
+tail -f /opt/enterprisehub-erp/erp/logs/erp-system.log
+
+# 等待看到 "Started SystemApplication" 表示启动成功
 ```
 
 ### 5.4 验证后端服务
 
 ```bash
-# 测试后端接口
-curl http://localhost:8082/api/system/health
+# 检查服务是否启动
+ps aux | grep java
 
-# 应该返回类似：{"code":200,"msg":"success"}
+# 检查端口是否监听
+netstat -tlnp | grep 8082
+
+# 测试后端接口
+curl http://localhost:8082/actuator/health
+
+# 应该返回类似：{"status":"UP"}
 ```
 
 ---
@@ -404,12 +640,20 @@ scp -r dist/* root@服务器IP:/var/www/erp/
 **或者在服务器上构建**（需要安装Node.js）：
 
 ```bash
-# 在服务器上安装Node.js
+# 在服务器上安装Node.js 18
 curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
 apt install -y nodejs
 
 # 构建前端
-cd /opt/enterprisehub-erp/enterprisehub-erp-ui
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp-ui
+
+# 确保.env.production文件存在
+cat > .env.production << EOF
+VITE_API_BASE_URL=/api
+VITE_APP_TITLE=EnterpriseHub ERP管理系统
+EOF
+
+# 安装依赖并构建
 npm install
 npm run build
 
@@ -618,48 +862,127 @@ ab -n 1000 -c 10 https://erp.yourdomain.com/api/system/health
 
 ### 10.1 启动/停止服务
 
+**Docker部署方式**：
 ```bash
 # 停止所有服务
-cd /opt/enterprisehub-erp/enterprisehub-erp
-docker-compose stop
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp
+docker compose stop
 
 # 启动所有服务
-docker-compose start
+docker compose start
 
 # 重启所有服务
-docker-compose restart
+docker compose restart
 
 # 查看服务状态
-docker-compose ps
+docker compose ps
+```
+
+**本地安装方式**：
+```bash
+# 创建服务管理脚本
+cat > /opt/enterprisehub-erp/erp/start-erp.sh << 'EOF'
+#!/bin/bash
+echo "启动MySQL..."
+systemctl start mysql
+
+echo "启动Redis..."
+systemctl start redis-server
+
+echo "启动ERP后端服务..."
+cd /opt/enterprisehub-erp/erp/enterprisehub-erp/erp-system
+nohup java -jar -Dspring.profiles.active=local target/erp-system-*.jar > /opt/enterprisehub-erp/erp/logs/erp-system.log 2>&1 &
+
+echo "启动Nginx..."
+systemctl start nginx
+
+echo "ERP系统启动完成！"
+EOF
+
+chmod +x /opt/enterprisehub-erp/erp/start-erp.sh
+
+# 停止服务脚本
+cat > /opt/enterprisehub-erp/erp/stop-erp.sh << 'EOF'
+#!/bin/bash
+echo "停止ERP后端服务..."
+pkill -f "erp-system"
+
+echo "停止Nginx..."
+systemctl stop nginx
+
+echo "ERP系统已停止！"
+EOF
+
+chmod +x /opt/enterprisehub-erp/erp/stop-erp.sh
+
+# 使用脚本
+/opt/enterprisehub-erp/erp/start-erp.sh  # 启动
+/opt/enterprisehub-erp/erp/stop-erp.sh   # 停止
 ```
 
 ### 10.2 查看日志
 
+**Docker部署方式**：
 ```bash
 # 查看所有服务日志
-docker-compose logs -f
+docker compose logs -f
 
 # 查看特定服务日志
-docker-compose logs -f erp-system
+docker compose logs -f erp-system
 
 # 查看最近100行日志
-docker-compose logs --tail=100 erp-system
+docker compose logs --tail=100 erp-system
+```
+
+**本地安装方式**：
+```bash
+# 查看后端日志
+tail -f /opt/enterprisehub-erp/erp/logs/erp-system.log
+
+# 查看MySQL日志
+tail -f /var/log/mysql/error.log
+
+# 查看Redis日志
+tail -f /var/log/redis/redis-server.log
+
+# 查看Nginx日志
+tail -f /var/log/nginx/error.log
+tail -f /var/log/nginx/access.log
 ```
 
 ### 10.3 数据库备份
 
+**Docker部署方式**：
 ```bash
 # 创建备份目录
 mkdir -p /backup/mysql
 
 # 手动备份
-docker exec erp-mysql mysqldump -uroot -p你的MySQL密码 erp_system > /backup/mysql/erp_$(date +%Y%m%d_%H%M%S).sql
+docker exec erp-mysql mysqldump -uroot -p123456 erp_system > /backup/mysql/erp_$(date +%Y%m%d_%H%M%S).sql
 
 # 设置自动备份（每天凌晨2点）
 crontab -e
 
 # 添加以下行：
-0 2 * * * docker exec erp-mysql mysqldump -uroot -p你的MySQL密码 erp_system > /backup/mysql/erp_$(date +\%Y\%m\%d).sql
+0 2 * * * docker exec erp-mysql mysqldump -uroot -p123456 erp_system > /backup/mysql/erp_$(date +\%Y\%m\%d).sql
+
+# 自动删除30天前的备份
+0 3 * * * find /backup/mysql -name "erp_*.sql" -mtime +30 -delete
+```
+
+**本地安装方式**：
+```bash
+# 创建备份目录
+mkdir -p /backup/mysql
+
+# 手动备份
+mysqldump -uroot -p123456 erp_system > /backup/mysql/erp_$(date +%Y%m%d_%H%M%S).sql
+
+# 设置自动备份（每天凌晨2点）
+crontab -e
+
+# 添加以下行：
+0 2 * * * mysqldump -uroot -p123456 erp_system > /backup/mysql/erp_$(date +\%Y\%m\%d).sql
 
 # 自动删除30天前的备份
 0 3 * * * find /backup/mysql -name "erp_*.sql" -mtime +30 -delete
@@ -667,21 +990,46 @@ crontab -e
 
 ### 10.4 更新系统
 
+**Docker部署方式**：
 ```bash
 # 1. 备份数据库（重要！）
-docker exec erp-mysql mysqldump -uroot -p你的MySQL密码 erp_system > /backup/erp_before_update.sql
+docker exec erp-mysql mysqldump -uroot -p123456 erp_system > /backup/erp_before_update.sql
 
 # 2. 拉取最新代码
-cd /opt/enterprisehub-erp
+cd /opt/enterprisehub-erp/erp
 git pull
 
 # 3. 重新构建并启动
 cd enterprisehub-erp
-docker-compose down
-docker-compose up -d --build
+docker compose down
+docker compose up -d --build
 
 # 4. 查看启动日志
-docker-compose logs -f
+docker compose logs -f
+```
+
+**本地安装方式**：
+```bash
+# 1. 备份数据库（重要！）
+mysqldump -uroot -p123456 erp_system > /backup/erp_before_update.sql
+
+# 2. 停止服务
+pkill -f "erp-system"
+
+# 3. 拉取最新代码
+cd /opt/enterprisehub-erp/erp
+git pull
+
+# 4. 重新编译
+cd enterprisehub-erp
+mvn clean package -DskipTests
+
+# 5. 启动服务
+cd erp-system
+nohup java -jar -Dspring.profiles.active=local target/erp-system-*.jar > /opt/enterprisehub-erp/erp/logs/erp-system.log 2>&1 &
+
+# 6. 查看启动日志
+tail -f /opt/enterprisehub-erp/erp/logs/erp-system.log
 ```
 
 ### 10.5 监控服务器资源
@@ -696,15 +1044,56 @@ htop
 # 查看磁盘使用
 df -h
 
-# 查看Docker容器资源使用
+# Docker部署：查看容器资源使用
 docker stats
+
+# 本地安装：查看进程资源使用
+ps aux | grep -E "(java|mysql|redis)"
+
+# 查看端口监听状态
+netstat -tlnp | grep -E "(3306|6379|8082|80|443)"
 ```
 
 ---
 
 ## 🚨 常见问题排查
 
-### 问题1：无法访问网站
+### 问题1：网络连接问题
+
+**症状**：`curl: (35) OpenSSL SSL_connect: Connection reset by peer` 或 `100% packet loss`
+
+**解决方案**：
+```bash
+# 测试网络连接
+ping registry-1.docker.io
+ping github.com
+
+# 如果网络受限，使用本地安装方式
+# 参考本文档的"方式B：本地服务安装部署"部分
+```
+
+### 问题2：Docker安装失败
+
+**症状**：`containerd.io : Conflicts: containerd`
+
+**解决方案**：
+```bash
+# 卸载冲突的包
+apt remove containerd.io containerd -y
+
+# 重新安装
+apt update
+apt install docker.io -y
+
+# 安装Docker Compose V2
+mkdir -p ~/.docker/cli-plugins/
+curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+chmod +x ~/.docker/cli-plugins/docker-compose
+
+# 或者使用本地安装方式
+```
+
+### 问题3：无法访问网站
 
 **检查步骤**：
 ```bash
@@ -722,11 +1111,12 @@ ufw status
 ping erp.yourdomain.com
 
 # 5. 查看Nginx错误日志
-tail -f /var/log/nginx/erp_error.log
+tail -f /var/log/nginx/error.log
 ```
 
-### 问题2：后端接口报错
+### 问题4：后端接口报错
 
+**Docker部署**：
 ```bash
 # 1. 检查后端容器是否运行
 docker ps | grep erp-system
@@ -735,13 +1125,28 @@ docker ps | grep erp-system
 docker logs -f erp-system
 
 # 3. 检查数据库连接
-docker exec -it erp-mysql mysql -uroot -p
+docker exec -it erp-mysql mysql -uroot -p123456
 
 # 4. 检查Redis连接
-docker exec -it erp-redis redis-cli -a 你的Redis密码
+docker exec -it erp-redis redis-cli -a 123456
 ```
 
-### 问题3：前端页面空白
+**本地安装**：
+```bash
+# 1. 检查Java进程是否运行
+ps aux | grep java
+
+# 2. 查看后端日志
+tail -f /opt/enterprisehub-erp/erp/logs/erp-system.log
+
+# 3. 检查数据库连接
+mysql -uroot -p123456 -e "SHOW DATABASES;"
+
+# 4. 检查Redis连接
+redis-cli -a 123456 ping
+```
+
+### 问题5：前端页面空白
 
 ```bash
 # 1. 检查前端文件是否存在
@@ -753,24 +1158,12 @@ nginx -t
 # 3. 查看浏览器控制台错误（F12）
 
 # 4. 检查API代理是否正常
-curl http://localhost:8082/api/system/health
+curl http://localhost:8082/actuator/health
 ```
 
-### 问题4：SSL证书错误
+### 问题6：数据库连接失败
 
-```bash
-# 1. 检查证书是否过期
-certbot certificates
-
-# 2. 手动续期证书
-certbot renew
-
-# 3. 重启Nginx
-systemctl reload nginx
-```
-
-### 问题5：数据库连接失败
-
+**Docker部署**：
 ```bash
 # 1. 检查MySQL容器是否运行
 docker ps | grep mysql
@@ -779,12 +1172,95 @@ docker ps | grep mysql
 docker logs erp-mysql
 
 # 3. 进入MySQL检查
-docker exec -it erp-mysql mysql -uroot -p
+docker exec -it erp-mysql mysql -uroot -p123456
 
 # 4. 检查数据库是否存在
 SHOW DATABASES;
 USE erp_system;
 SHOW TABLES;
+```
+
+**本地安装**：
+```bash
+# 1. 检查MySQL服务状态
+systemctl status mysql
+
+# 2. 查看MySQL日志
+tail -f /var/log/mysql/error.log
+
+# 3. 测试连接
+mysql -uroot -p123456 -e "SELECT 1;"
+
+# 4. 重置密码（如果需要）
+mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '123456';"
+```
+
+### 问题7：Docker构建失败
+
+**症状**：`COPY erp-common/src: no such file or directory` 或构建过程中找不到文件
+
+**解决方案**：
+```bash
+# 1. 检查项目结构
+ls -la /opt/enterprisehub-erp/erp/enterprisehub-erp/
+ls -la /opt/enterprisehub-erp/erp/enterprisehub-erp/erp-common/
+
+# 2. 清除Docker缓存
+docker system prune -f
+docker compose build --no-cache
+
+# 3. 分步构建服务
+docker compose build mysql redis
+docker compose build erp-system
+docker compose build erp-gateway
+docker compose build erp-frontend
+
+# 4. 如果还是失败，检查Dockerfile路径问题
+# 确保Dockerfile中的COPY路径正确
+```
+
+**常见Dockerfile问题修复**：
+
+如果erp-system或erp-gateway构建失败，检查Dockerfile是否正确复制了多模块项目：
+```dockerfile
+# 错误的方式（会导致构建失败）
+COPY erp-common/src erp-common/src
+
+# 正确的方式（复制整个模块目录）
+COPY erp-common ./erp-common
+COPY erp-api ./erp-api
+```
+
+**Docker部署**：
+```bash
+# 1. 检查MySQL容器是否运行
+docker ps | grep mysql
+
+# 2. 查看MySQL日志
+docker logs erp-mysql
+
+# 3. 进入MySQL检查
+docker exec -it erp-mysql mysql -uroot -p123456
+
+# 4. 检查数据库是否存在
+SHOW DATABASES;
+USE erp_system;
+SHOW TABLES;
+```
+
+**本地安装**：
+```bash
+# 1. 检查MySQL服务状态
+systemctl status mysql
+
+# 2. 查看MySQL日志
+tail -f /var/log/mysql/error.log
+
+# 3. 测试连接
+mysql -uroot -p123456 -e "SELECT 1;"
+
+# 4. 重置密码（如果需要）
+mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '123456';"
 ```
 
 ---
@@ -842,8 +1318,8 @@ ENTRYPOINT ["java", "-jar", \
 
 如果遇到无法解决的问题：
 
-1. 查看系统日志：`docker-compose logs -f`
-2. 查看Nginx日志：`tail -f /var/log/nginx/erp_error.log`
+1. 查看系统日志：`docker compose logs -f`
+2. 查看Nginx日志：`tail -f /var/log/nginx/error.log`
 3. 检查服务器资源：`htop` 和 `df -h`
 4. 联系技术支持（提供日志文件）
 
