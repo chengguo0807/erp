@@ -156,8 +156,8 @@ cd /opt/enterprisehub-erp
 
 **方式一：使用Git（推荐）**
 ```bash
-# 如果代码在GitHub/Gitee
-git clone https://github.com/你的用户名/enterprisehub-erp.git .
+# 从GitHub克隆项目
+git clone https://github.com/chengguo0807/erp.git .
 
 # 如果是私有仓库，需要配置SSH密钥或输入账号密码
 ```
@@ -194,7 +194,7 @@ spring:
   datasource:
     url: jdbc:mysql://mysql:3306/erp_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
-    password: 你的数据库密码（建议改成强密码）
+    password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 20
@@ -204,7 +204,7 @@ spring:
   redis:
     host: redis
     port: 6379
-    password: 你的Redis密码（建议设置）
+    password: 123456
     database: 0
     timeout: 3000
 
@@ -216,7 +216,7 @@ spring:
 
 # JWT配置
 jwt:
-  secret: 你的JWT密钥（至少32位随机字符串）
+  secret: enterprisehub-erp-secret-key-must-be-at-least-256-bits-long
   expiration: 7200  # Token有效期2小时
 
 # 日志配置
