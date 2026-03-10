@@ -45,8 +45,8 @@ mybatis-plus:
 
 # JWT配置
 jwt:
-  secret: enterprisehub-erp-secret-key-must-be-at-least-256-bits-long
-  expiration: 86400
+  secret: ${JWT_SECRET:enterprisehub-erp-secret-key-must-be-at-least-256-bits-long}
+  expiration: ${JWT_EXPIRATION:86400}
 
 # SpringDoc配置
 springdoc:

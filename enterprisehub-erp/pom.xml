@@ -173,6 +173,19 @@
         </dependency>
     </dependencies>
 
+    <repositories>
+        <repository>
+            <id>alimaven</id>
+            <name>Aliyun Maven</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </repository>
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+    </repositories>
+
     <build>
         <pluginManagement>
             <plugins>

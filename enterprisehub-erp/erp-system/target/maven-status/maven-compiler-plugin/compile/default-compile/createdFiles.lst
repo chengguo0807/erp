@@ -51,6 +51,7 @@ com\enterprisehub\system\service\SysDeptService.class
 com\enterprisehub\system\domain\entity\SalesOrderItem.class
 com\enterprisehub\system\controller\StockOutController.class
 com\enterprisehub\system\config\OpenApiConfig.class
+com\enterprisehub\system\domain\dto\SysUserDTO.class
 com\enterprisehub\system\controller\ExpenseController.class
 com\enterprisehub\system\service\impl\ProductCategoryServiceImpl.class
 com\enterprisehub\system\controller\CustomerController.class
@@ -72,6 +73,7 @@ com\enterprisehub\system\controller\SysOperationLogController.class
 com\enterprisehub\system\service\PaymentService.class
 com\enterprisehub\system\service\SysUserService.class
 com\enterprisehub\system\mapper\ExpenseMapper.class
+com\enterprisehub\system\domain\vo\SysUserVO.class
 com\enterprisehub\system\domain\entity\SysRoleMenu.class
 com\enterprisehub\system\service\impl\SysOperationLogServiceImpl.class
 com\enterprisehub\system\mapper\SupplierMapper.class

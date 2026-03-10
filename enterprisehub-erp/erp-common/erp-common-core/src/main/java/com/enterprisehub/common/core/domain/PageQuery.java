@@ -1,3 +1,4 @@
+
 package com.enterprisehub.common.core.domain;
 
 import lombok.Data;

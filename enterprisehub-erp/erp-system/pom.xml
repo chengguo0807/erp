@@ -14,14 +14,23 @@
     <description>系统管理服务</description>
 
     <dependencies>
-        <!-- 内部模块 -->
+        <!-- Spring Boot Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.enterprisehub</groupId>
+            <artifactId>erp-common-mybatis</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.enterprisehub</groupId>
             <artifactId>erp-common-security</artifactId>
         </dependency>
         <dependency>
             <groupId>com.enterprisehub</groupId>
-            <artifactId>erp-common-mybatis</artifactId>
+            <artifactId>erp-common-redis</artifactId>
         </dependency>
         <dependency>
             <groupId>com.enterprisehub</groupId>

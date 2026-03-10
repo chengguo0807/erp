@@ -35,7 +35,7 @@ spring:
 
 # JWT配置
 jwt:
-  secret: enterprisehub-erp-secret-key-must-be-at-least-256-bits-long
+  secret: ${JWT_SECRET:enterprisehub-erp-secret-key-must-be-at-least-256-bits-long}
 
 # 日志配置
 logging:

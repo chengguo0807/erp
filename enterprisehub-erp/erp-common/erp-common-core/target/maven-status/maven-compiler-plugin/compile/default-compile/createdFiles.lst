@@ -1,5 +1,8 @@
+com\enterprisehub\common\core\annotation\RateLimit.class
 com\enterprisehub\common\core\constant\Constants.class
 com\enterprisehub\common\core\exception\GlobalExceptionHandler.class
+com\enterprisehub\common\core\annotation\DistributedLock.class
+com\enterprisehub\common\core\annotation\RateLimit$LimitType.class
 com\enterprisehub\common\core\domain\PageQuery.class
 com\enterprisehub\common\core\domain\R.class
 com\enterprisehub\common\core\domain\BaseEntity.class

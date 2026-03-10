@@ -43,8 +43,8 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 // 放行健康检查
                 .requestMatchers("/actuator/**").permitAll()
-                // 临时放开所有接口用于开发测试
-                .requestMatchers("/system/**", "/sales/**", "/purchase/**", "/inventory/**", "/finance/**", "/statistics/**").permitAll()
+                // 业务接口需要认证
+                .requestMatchers("/system/**", "/sales/**", "/purchase/**", "/inventory/**", "/finance/**", "/statistics/**").authenticated()
                 // 其他请求需要认证
                 .anyRequest().authenticated()
             )

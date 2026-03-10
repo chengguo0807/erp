@@ -1,1 +1,5 @@
+com\enterprisehub\common\redis\config\CacheConfig.class
+com\enterprisehub\common\redis\aspect\DistributedLockAspect.class
 com\enterprisehub\common\redis\config\RedisConfig.class
+com\enterprisehub\common\redis\config\RedissonConfig.class
+com\enterprisehub\common\redis\aspect\RateLimitAspect.class
