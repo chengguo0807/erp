@@ -52,6 +52,7 @@ services:
     ports:
       - "8082:8082"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: root
@@ -66,6 +67,8 @@ services:
         condition: service_healthy
     networks:
       - erp-network
+    volumes:
+      - ./logs:/var/log
 
   # API网关
   erp-gateway:
@@ -77,13 +80,17 @@ services:
     ports:
       - "8080:8080"
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: 123456
+      ERP_SYSTEM_URL: http://erp-system:8082
     depends_on:
       - erp-system
     networks:
       - erp-network
+    volumes:
+      - ./logs:/var/log
 
   # 前端应用
   erp-frontend:
